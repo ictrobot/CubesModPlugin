@@ -51,11 +51,18 @@ class CubesModPlugin implements Plugin<Project>{
         project.task('cm', type:Zip, description: "Builds Cubes cm file", group: "cubes") {
             destinationDir = new File(project.buildDir, '/libs/')
             // archiveName = project.cubes.modName + '.cm'      in afterEvaluate
-            if (project.cubes.buildDesktop) from(new File(project.buildDir, '/libs/mod.jar'))
-            if (project.cubes.buildAndroid) from(new File(project.buildDir, '/libs/mod.dex'))
+            if (project.cubes.buildDesktop) {
+                from(new File(project.buildDir, '/libs/mod.jar'))
+            }
+            if (project.cubes.buildAndroid) {
+                from(new File(project.buildDir, '/libs/mod.dex'))
+            }
             from(new File(project.buildDir, '/libs/mod.properties'))
             into('assets') {
                 from(new File(project.cubes.assetsFolder))
+            }
+            into('json') {
+                from(new File(project.cubes.jsonFolder))
             }
 
             outputs.upToDateWhen { false }
@@ -126,6 +133,7 @@ class CubesModPluginExtension {
     def String modClass = ''
     def String modName = ''
     def String assetsFolder = 'assets/'
+    def String jsonFolder = 'json/'
     def String androidSDKDir = System.getenv("ANDROID_HOME")
     def boolean buildAndroid = true;
     def boolean buildDesktop = true;
