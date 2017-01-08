@@ -26,7 +26,7 @@ class CubesModPlugin implements Plugin<Project>{
             String androidBuildToolsVersion = getBuildToolsVersion(project)
 
             if (!new File("${androidSDKDir}/build-tools/${androidBuildToolsVersion}/").exists()) {
-                throw new GradleException("You need build-tools ${androidBuildToolsVersion}")
+                throw new GradleException("Android sdk ${androidSDKDir} does not have build-tools ${androidBuildToolsVersion}")
             }
             String cmdExt = Os.isFamily(Os.FAMILY_WINDOWS) ? '.bat' : ''
             project.exec {
@@ -48,11 +48,11 @@ class CubesModPlugin implements Plugin<Project>{
             printWriter.close()
         }
 
-        project.task('cm', type:Zip, dependsOn: [project.tasks.getByName('jar'), project.tasks.getByName('modDex'), project.tasks.getByName('modProperties')], description: "Builds Cubes cm file", group: "cubes") {
+        project.task('cm', type:Zip, description: "Builds Cubes cm file", group: "cubes") {
             destinationDir = new File(project.buildDir, '/libs/')
             // archiveName = project.cubes.modName + '.cm'      in afterEvaluate
-            from(new File(project.buildDir, '/libs/mod.jar'))
-            from(new File(project.buildDir, '/libs/mod.dex'))
+            if (project.cubes.buildDesktop) from(new File(project.buildDir, '/libs/mod.jar'))
+            if (project.cubes.buildAndroid) from(new File(project.buildDir, '/libs/mod.dex'))
             from(new File(project.buildDir, '/libs/mod.properties'))
             into('assets') {
                 from(new File(project.cubes.assetsFolder))
@@ -72,7 +72,12 @@ class CubesModPlugin implements Plugin<Project>{
             def dep = project.dependencies.add("compile", "ethanjones.cubes:core:$version")
             project.configurations.compile.dependencies.add(dep)
 
-            project.tasks.getByName("cm").archiveName = project.cubes.modName + '.cm'
+            def cm = project.tasks.getByName("cm")
+            cm.archiveName = project.cubes.modName + '.cm'
+
+            cm.dependsOn.add(project.tasks.getByName('modProperties'))
+            if (project.cubes.buildAndroid) cm.dependsOn.add(project.tasks.getByName('modDex'))
+            if (project.cubes.buildDesktop) cm.dependsOn.add(project.tasks.getByName('jar'))
         }
 
         project.tasks.withType(JavaCompile) {
@@ -122,4 +127,6 @@ class CubesModPluginExtension {
     def String modName = ''
     def String assetsFolder = 'assets/'
     def String androidSDKDir = System.getenv("ANDROID_HOME")
+    def boolean buildAndroid = true;
+    def boolean buildDesktop = true;
 }
