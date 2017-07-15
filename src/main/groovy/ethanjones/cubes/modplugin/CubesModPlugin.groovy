@@ -76,6 +76,14 @@ class CubesModPlugin implements Plugin<Project>{
 
         project.afterEvaluate {
             def version = project.cubes.cubesVersion
+
+            int[] versionArray = version.tokenize('.- ')[0..<3]*.toInteger()
+            if (versionArray.length != 3) throw new GradleException('Invalid cubes version')
+
+            if (project.cubes.buildAndroid && !project.cubes.forceAndroid && project.cubes.buildDesktop && !(versionArray[0] <= 0 && versionArray[1] <= 0 && versionArray[2] < 5)) {
+                project.cubes.buildAndroid = false
+            }
+
             def dep = project.dependencies.add("compile", "ethanjones.cubes:core:$version")
             project.configurations.compile.dependencies.add(dep)
 
@@ -135,6 +143,7 @@ class CubesModPluginExtension {
     def String assetsFolder = 'assets/'
     def String jsonFolder = 'json/'
     def String androidSDKDir = System.getenv("ANDROID_HOME")
-    def boolean buildAndroid = true;
-    def boolean buildDesktop = true;
+    def boolean buildAndroid = true
+    def boolean forceAndroid = false
+    def boolean buildDesktop = true
 }
