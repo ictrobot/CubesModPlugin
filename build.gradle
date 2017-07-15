@@ -11,9 +11,9 @@ repositories {
     mavenCentral()
 }
 
-version = '0.0.1'
+version = '0.0.2'
 ext {
-    isRelease = true
+    isRelease = false
     localProperties = new Properties()
     if (file("build.properties").exists()) {
         file("build.properties").withReader { reader ->
