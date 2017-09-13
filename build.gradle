@@ -13,7 +13,7 @@ repositories {
 
 version = '0.0.2'
 ext {
-    isRelease = false
+    isRelease = true
     localProperties = new Properties()
     if (file("build.properties").exists()) {
         file("build.properties").withReader { reader ->
