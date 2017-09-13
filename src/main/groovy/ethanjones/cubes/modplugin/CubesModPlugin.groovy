@@ -28,33 +28,37 @@ class CubesModPlugin implements Plugin<Project>{
 
         project.extensions.create("cubes", CubesModPluginExtension)
 
-        project.task('modDex', dependsOn: project.tasks.getByName('jar'), description: "Creates .dex to run on android", group: "cubes") << {
-            new File(project.buildDir, '/libs/').mkdirs()
+        project.task('modDex', dependsOn: project.tasks.getByName('jar'), description: "Creates .dex to run on android", group: "cubes") {
+            doLast {
+                new File(project.buildDir, '/libs/').mkdirs()
 
-            String androidSDKDir = project.cubes.androidSDKDir
-            String androidBuildToolsVersion = getBuildToolsVersion(project)
+                String androidSDKDir = project.cubes.androidSDKDir
+                String androidBuildToolsVersion = getBuildToolsVersion(project)
 
-            if (!new File("${androidSDKDir}/build-tools/${androidBuildToolsVersion}/").exists()) {
-                throw new GradleException("Android sdk ${androidSDKDir} does not have build-tools ${androidBuildToolsVersion}")
-            }
-            String cmdExt = Os.isFamily(Os.FAMILY_WINDOWS) ? '.bat' : ''
-            project.exec {
-                commandLine "${androidSDKDir}/build-tools/${androidBuildToolsVersion}/dx${cmdExt}", '--dex',
-                        "--output=${project.buildDir}/libs/mod.dex",
-                        "--verbose",
-                        "${project.buildDir}/libs/mod.jar"
+                if (!new File("${androidSDKDir}/build-tools/${androidBuildToolsVersion}/").exists()) {
+                    throw new GradleException("Android sdk ${androidSDKDir} does not have build-tools ${androidBuildToolsVersion}")
+                }
+                String cmdExt = Os.isFamily(Os.FAMILY_WINDOWS) ? '.bat' : ''
+                project.exec {
+                    commandLine "${androidSDKDir}/build-tools/${androidBuildToolsVersion}/dx${cmdExt}", '--dex',
+                            "--output=${project.buildDir}/libs/mod.dex",
+                            "--verbose",
+                            "${project.buildDir}/libs/mod.jar"
+                }
             }
         }
 
-        project.task('modProperties', description: "Creates mod properties file", group: "cubes") << {
-            new File(project.buildDir, '/libs/').mkdirs()
-            def props = new Properties()
-            props.setProperty('modClass', project.cubes.modClass)
-            props.setProperty('modName', project.cubes.modName)
-            props.setProperty('modVersion', project.cubes.modVersion)
-            PrintWriter printWriter = new File(project.buildDir, '/libs/mod.properties').newPrintWriter();
-            props.store(printWriter, null)
-            printWriter.close()
+        project.task('modProperties', description: "Creates mod properties file", group: "cubes") {
+            doLast {
+                new File(project.buildDir, '/libs/').mkdirs()
+                def props = new Properties()
+                props.setProperty('modClass', project.cubes.modClass)
+                props.setProperty('modName', project.cubes.modName)
+                props.setProperty('modVersion', project.cubes.modVersion)
+                PrintWriter printWriter = new File(project.buildDir, '/libs/mod.properties').newPrintWriter();
+                props.store(printWriter, null)
+                printWriter.close()
+            }
         }
 
         project.task('cm', type:Zip, description: "Builds Cubes cm file", group: "cubes") {
