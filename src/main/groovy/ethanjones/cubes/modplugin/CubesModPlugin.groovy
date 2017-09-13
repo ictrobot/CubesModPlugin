@@ -13,9 +13,18 @@ import org.gradle.api.tasks.compile.JavaCompile
 
 class CubesModPlugin implements Plugin<Project>{
 
+    public static final String CLIENT_CLASS = "ethanjones.cubes.core.platform.desktop.ClientLauncher";
+    public static final String SERVER_CLASS = "ethanjones.cubes.core.platform.desktop.ServerLauncher";
+
     @Override
     void apply(Project project) {
         if (!project.plugins.hasPlugin(JavaPlugin.class)) throw new GradleException("'java' plugin must be applied")
+
+        def runClientSourceSet = project.sourceSets.create('cubesRunClient')
+        def runClientCompileConfiguration = project.configurations.getByName(runClientSourceSet.compileConfigurationName)
+
+        def runServerSourceSet = project.sourceSets.create('cubesRunServer')
+        def runServerCompileConfiguration = project.configurations.getByName(runServerSourceSet.compileConfigurationName)
 
         project.extensions.create("cubes", CubesModPluginExtension)
 
@@ -68,6 +77,32 @@ class CubesModPlugin implements Plugin<Project>{
             outputs.upToDateWhen { false }
         }
 
+        project.task('runClient', description: "Runs Cubes Client", group: "cubes", dependsOn: [project.tasks.getByName("cm")]) {
+            doLast {
+                new File(project.buildDir.absolutePath + "/run/client").mkdirs()
+                project.javaexec{
+                    args = ["--mod", project.tasks.getByName('cm').archivePath, *project.cubes.runClientArguments]
+                    classpath = project.files{ runClientCompileConfiguration.files }
+                    main = CLIENT_CLASS
+                    maxHeapSize = project.cubes.runClientHeapSize
+                    workingDir = project.buildDir.absolutePath + "/run/client"
+                }
+            }
+        }
+
+        project.task('runServer', description: "Runs Cubes Server", group: "cubes", dependsOn: [project.tasks.getByName("cm")]) {
+            doLast {
+                new File(project.buildDir.absolutePath + "/run/server").mkdirs()
+                project.javaexec{
+                    args = ["--mod", project.tasks.getByName('cm').archivePath, *project.cubes.runServerArguments]
+                    classpath = project.files{ runServerCompileConfiguration.files }
+                    main = SERVER_CLASS
+                    maxHeapSize = project.cubes.runServerHeapSize
+                    workingDir = project.buildDir.absolutePath + "/run/server"
+                }
+            }
+        }
+
         addMavenCentral(project)
         addMavenRepo(project, 'https://oss.sonatype.org/content/repositories/snapshots/')
         addMavenRepo(project, 'https://oss.sonatype.org/content/repositories/releases/')
@@ -86,6 +121,12 @@ class CubesModPlugin implements Plugin<Project>{
 
             def dep = project.dependencies.add("compile", "ethanjones.cubes:core:$version")
             project.configurations.compile.dependencies.add(dep)
+
+            def clientDep = project.dependencies.add(runClientCompileConfiguration.name, "ethanjones.cubes:client:$version")
+            runClientCompileConfiguration.dependencies.add(clientDep)
+
+            def serverDep = project.dependencies.add(runServerCompileConfiguration.name, "ethanjones.cubes:server:$version")
+            runServerCompileConfiguration.dependencies.add(serverDep)
 
             def cm = project.tasks.getByName("cm")
             cm.archiveName = project.cubes.modName + '.cm'
@@ -143,6 +184,12 @@ class CubesModPluginExtension {
     def String assetsFolder = 'assets/'
     def String jsonFolder = 'json/'
     def String androidSDKDir = System.getenv("ANDROID_HOME")
+
+    def String runClientHeapSize = '2G'
+    def List runClientArguments = []
+    def String runServerHeapSize = '2G'
+    def List runServerArguments = []
+
     def boolean buildAndroid = true
     def boolean forceAndroid = false
     def boolean buildDesktop = true
