@@ -1,12 +1,11 @@
 package ethanjones.cubes.modplugin
 
-import org.apache.tools.ant.taskdefs.condition.Os
+import com.android.dx.command.dexer.Main
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
-import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.tasks.compile.JavaCompile
@@ -32,19 +31,10 @@ class CubesModPlugin implements Plugin<Project>{
             doLast {
                 new File(project.buildDir, '/libs/').mkdirs()
 
-                String androidSDKDir = project.cubes.androidSDKDir
-                String androidBuildToolsVersion = getBuildToolsVersion(project)
-
-                if (!new File("${androidSDKDir}/build-tools/${androidBuildToolsVersion}/").exists()) {
-                    throw new GradleException("Android sdk ${androidSDKDir} does not have build-tools ${androidBuildToolsVersion}")
-                }
-                String cmdExt = Os.isFamily(Os.FAMILY_WINDOWS) ? '.bat' : ''
-                project.exec {
-                    commandLine "${androidSDKDir}/build-tools/${androidBuildToolsVersion}/dx${cmdExt}", '--dex',
-                            "--output=${project.buildDir}/libs/mod.dex",
-                            "--verbose",
-                            "${project.buildDir}/libs/mod.jar"
-                }
+                Main.Arguments arguments = new Main.Arguments()
+                arguments.parse("--output=${project.buildDir}/libs/mod.dex", "${project.buildDir}/libs/mod.jar")
+                int result = Main.run(arguments)
+                if (result != 0) throw new GradleException("Failed to convert jar to dex [" + result + "]")
             }
         }
 
@@ -116,13 +106,6 @@ class CubesModPlugin implements Plugin<Project>{
         project.afterEvaluate {
             def version = project.cubes.cubesVersion
 
-            int[] versionArray = version.tokenize('.- ')[0..<3]*.toInteger()
-            if (versionArray.length != 3) throw new GradleException('Invalid cubes version')
-
-            if (project.cubes.buildAndroid && !project.cubes.forceAndroid && project.cubes.buildDesktop && !(versionArray[0] <= 0 && versionArray[1] <= 0 && versionArray[2] < 5)) {
-                project.cubes.buildAndroid = false
-            }
-
             def dep = project.dependencies.add("compile", "ethanjones.cubes:core:$version")
             project.configurations.compile.dependencies.add(dep)
 
@@ -148,28 +131,10 @@ class CubesModPlugin implements Plugin<Project>{
         project.tasks.getByName('jar').archiveName = 'mod.jar'
     }
 
-    static String getBuildToolsVersion(Project project) {
-        File dir = new File(project.buildDir, "cubes")
-        dir.mkdirs()
-        File jar = project.configurations.compile.fileCollection{dep -> dep.group == 'ethanjones.cubes' && dep.name == 'core'}.first()
-        FileTree tree = project.zipTree(jar)
-        project.copy {
-            from(tree) {
-                includes ["core.properties"]
-            }
-            into dir
-        }
-        Properties properties = new Properties()
-        FileInputStream fileInputStream = new FileInputStream(new File(dir, "core.properties"))
-        properties.load(fileInputStream)
-        fileInputStream.close()
-        return properties["ANDROID_BUILD_TOOLS"]
-    }
-
     static void addMavenRepo(Project project, final String url) {
         project.getRepositories().maven(new Action<MavenArtifactRepository>() {
                 @Override
-                public void execute(MavenArtifactRepository repo) {
+                void execute(MavenArtifactRepository repo) {
                     repo.setUrl(url);
                 }
         });
@@ -187,14 +152,12 @@ class CubesModPluginExtension {
     def String modName = ''
     def String assetsFolder = 'assets/'
     def String jsonFolder = 'json/'
-    def String androidSDKDir = System.getenv("ANDROID_HOME")
 
     def String runClientHeapSize = '2G'
     def List runClientArguments = []
     def String runServerHeapSize = '2G'
     def List runServerArguments = []
 
-    def boolean buildAndroid = true
-    def boolean forceAndroid = false
+    def boolean buildAndroid = false
     def boolean buildDesktop = true
 }
